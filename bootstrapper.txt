@@ -1,0 +1,252 @@
+--@name Starframe | Bootstrapper
+--@author The Starframe Team
+--@class none
+
+--@includedir starframe/libraries
+--@includedir starframe/modules
+
+--[[
+
+	**** Starfarme ****
+	Starframe's bootstrapper, loads all libraries & modules.
+
+	All libraries are loaded first and populate the environment used by modules.
+	Modules are then loaded in separate protected environments as a way to isolate each module from each other.
+
+--]]
+
+
+-- @table mainframe The main mainframe table, containing mainframe-wide constants and functions.
+mainframe = {
+	name = "Starframe",				-- The name of the mainframe
+	version = "0.1.0b",				-- The current version of the mainframe
+	author = "The Starframe Team"	-- The author(s) of the mainframe
+}
+
+
+-- @table bootstrapper The bootstrapper table, containing functions for setting up the mainframe and loading all assets.
+bootstrapper = {
+	environment_mt = {
+		__metatable = "Starframe Environment"
+	}
+}
+
+bootstrapper.environment_mt.__index = bootstrapper.environment_mt
+
+
+--- Creates an isolated environment for a module to run in.
+-- @tparam string modulePath The path to the module.
+-- @return table The created environment.
+function bootstrapper.createEnvironment(modulePath)
+	assert(type(modulePath) == "string", 'Invalid type for "modulePath" parameter. (Expected string, got '..type(modulePath)..")")
+
+	return setmetatable({
+		MODULE_PATH = modulePath
+	}, bootstrapper.environment_mt)
+end
+
+
+--- Adds a value to the module's environment.
+-- @param key The key by which the value will be accessible as.
+-- @param value The value to add to the environment.
+function bootstrapper.addToEnvironment(key, value)
+	assert(key ~= nil, '"key" parameter cannot be nil.')
+	environment_mt[key] = value
+end
+
+
+--- Provides a standard error-catching mechanism for libraries to use.
+-- @tparam Error errorTrace The stacktrack of the error that happened in module code.
+-- @retrun Error The stacktrace.
+function bootstrapper.handleError(errorTrace)
+	print(errorTrace) -- TODO: Make a less primitive error handler :3
+	return errorTrace
+end
+
+-- Loading order tables for setup.
+local libraryLoadOrder = {}
+local moduleLoadOrder = {}
+
+-- Root folders for both shared and local mainframe file locations.
+local sharedRoot = "starframe"
+local localRoot = string.gsub(starfall.getMainFileName(), "/[^/]+$", "", 1)
+
+
+--- Sets the priority for a given library.
+-- @tparam string path The library's relative path from the mainframe's root.
+-- @tparam int priority The priority of the library, a higher number will make the library load sooner.
+function bootstrapper.setLibraryPriority(path, priority)
+	assert(type(path) == "string", 'Invalid type for "path" parameter. (Expected string, got '..type(path)..")")
+	assert(type(priority) == "number", 'Invalid type for "priority" parameter. (Expected number, got '..type(prority)..")")
+
+	-- If existing entry with path exists, update it.
+	for _, existingEntry in pairs(libraryLoadOrder) do
+		if existingEntry.path == path then
+			existingEntry.priority = priority
+			return
+		end
+	end
+
+	-- Otherwise add new entry
+	libraryLoadOrder[#libraryLoadOrder + 1] = {
+		path = path,
+		priority = priority
+	}
+end
+
+
+--- Sets the priority for a given module.
+-- @tparam string path The module's relative path from the mainframe's root.
+-- @tparam int priority The priority of the module, a higher number will make the module load sooner.
+function bootstrapper.setModulePriority(path, priority)
+	assert(type(path) == "string", 'Invalid type for "path" parameter. (Expected string, got '..type(path)..")")
+	assert(type(priority) == "number", 'Invalid type for "priority" parameter. (Expected number, got '..type(prority)..")")
+
+	-- If existing entry with path exists, update it.
+	for _, existingEntry in pairs(moduleLoadOrder) do
+		if existingEntry.path == path then
+			existingEntry.priority = priority
+			return
+		end
+	end
+
+	-- Otherwise add new entry
+	moduleLoadOrder[#moduleLoadOrder + 1] = {
+		path = path,
+		priority = priority
+	}
+end
+
+
+--- Binds a script to a loading order table
+-- Updates the matching loading order entry or creates it.
+-- @tparam string path The script's relative path.
+-- @tparam function The script to bind
+-- @tparam loadingOrder table The loading order table to bind the script to.
+-- @tparam isFromShared bool Whether the script comes from shared or local.
+local function bindScript(path, script, loadingOrder, isFromShared)
+	local entry
+
+	for i = 1, #loadingOrder do
+		if loadingOrder[i].path == path then
+			entry = loadingOrder[i]
+		end
+	end
+
+	if entry == nil then
+		loadingOrder[#loadingOrder + 1] = {
+			path = path
+		}
+
+		entry = loadingOrder[#loadingOrder]
+	end
+
+	if isFromShared then
+		entry.sharedScript = script
+	else
+		entry.localScript = script
+	end
+end
+
+
+--- Loads all libraries in order.
+-- Libraries are loaded by priority, higher priorities are loaded first.
+-- Libraries with no set priority are loaded in a random order.
+function bootstrapper.loadLibraries()
+	local librariesToLoad = starfall.getScripts()
+
+	-- Remove all files that are not libraries from the list
+	for path, script in pairs(librariesToLoad) do
+		local isSharedLibrary = string.find(path, sharedRoot.."/libraries/") ~= nil
+		local isLocalLibrary = string.find(path, localRoot.."/libraries/") ~= nil
+
+		if not (isLocalLibrary or isSharedLibrary) then
+			librariesToLoad[path] = nil
+			goto continueLibraryLoad
+		end
+
+		-- Normalise file paths
+		local localPath
+		if isSharedLibrary then
+			localPath = utf8.sub(path, #(sharedRoot.."/libraries/") + 1)
+		else
+			localPath = utf8.sub(path, #(localRoot.."/libraries/") + 1)
+		end
+
+		-- Bind library to loading order
+		bindScript(localPath, script, libraryLoadOrder, isSharedLibrary)
+
+		::continueLibraryLoad::
+	end
+
+	-- Sort libraries by priority
+	table.sort(libraryLoadOrder, function(a, b)
+		if a.priority == nil then return false end
+		if b.priority == nil then return true end
+
+		return a.priority >= b.priority
+	end)
+
+	-- Load all libraries
+	for i = 1, #libraryLoadOrder do
+		local entry = libraryLoadOrder[i]
+
+		-- Take libraries from local files in priority to shared files.
+		local script = entry.localScript or entry.sharedScript
+		script()
+	end
+end
+
+
+--- Loads all modules in order.
+-- Modules are loaded by priority, higher priorities are loaded first.
+-- Modules with no set priority are loaded in a random order.
+function bootstrapper.loadModules()
+	local modulesToLoad = starfall.getScripts()
+
+	-- Remove all files that are not modules from the list
+	for path, script in pairs(modulesToLoad) do
+		local isSharedModule = string.find(path, sharedRoot.."/modules/") ~= nil
+		local isLocalModule = string.find(path, localRoot.."/modules/") ~= nil
+
+		if not (isLocalModule or isSharedModule) then
+			modulesToLoad[path] = nil
+			goto continueModuleLoad
+		end
+
+		-- Normalise file paths
+		local localPath
+		if isSharedModule then
+			localPath = utf8.sub(path, #(sharedRoot.."/modules/") + 1)
+		else
+			localPath = utf8.sub(path, #(localRoot.."/modules/") + 1)
+		end
+
+		-- Bind module to loading order
+		bindScript(localPath, script, moduleLoadOrder, isSharedModule)
+
+		::continueModuleLoad::
+	end
+
+	-- Sort modules by priority
+	table.sort(moduleLoadOrder, function(a, b)
+		if a.priority == nil then return false end
+		if b.priority == nil then return true end
+
+		return a.priority >= b.priority
+	end)
+
+	-- Load all modules
+	hook.run("premoduleload")
+	for i = 1, #moduleLoadOrder do
+		local entry = moduleLoadOrder[i]
+
+		-- Take modules from local files in priority to shared files.
+		local script = entry.localScript or entry.sharedScript
+		local environment = bootstrapper.createEnvironment(entry.path)
+
+		setfenv(script, environment)
+		xpcall(script, bootstrapper.handleError)
+	end
+	hook.run("postmoduleload")
+end
