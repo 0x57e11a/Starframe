@@ -43,7 +43,7 @@ function bootstrapper.createEnvironment(modulePath)
 
 	return setmetatable({
 		MODULE_PATH = modulePath
-	}, bootstrapper.environment_mt)
+	}, environment_mt)
 end
 
 
