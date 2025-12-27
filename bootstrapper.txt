@@ -25,13 +25,14 @@ mainframe = {
 
 
 -- @table bootstrapper The bootstrapper table, containing functions for setting up the mainframe and loading all assets.
-bootstrapper = {
-	environment_mt = {
-		__metatable = "Starframe Environment"
-	}
+bootstrapper = {}
+
+-- @table environment_mt The environment metatable, base for all module environments.
+local environment_mt = {
+	__metatable = "Starframe Environment"
 }
 
-bootstrapper.environment_mt.__index = bootstrapper.environment_mt
+environment_mt.__index = environment_mt
 
 
 --- Creates an isolated environment for a module to run in.
