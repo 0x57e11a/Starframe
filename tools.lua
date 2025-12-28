@@ -13,11 +13,6 @@ package.cpath =
 local json = require("dkjson")
 local lfs = require("lfs")
 local http = require("socket.http")
-
-if lfs.currentdir():find("garrysmod[/\\]data[/\\]starfall") then
-	warning("this repo should not be in starfall, instead move it out of starfall and use the `link` command to hardlink the files")
-end
-
 local sch = require("src/lib/schema")
 
 local parser = require("argparse")() {
@@ -88,29 +83,248 @@ local verbose = args.verbose
 
 local function read_file(path)
 	local fi = assert(io.open(path), "failed to open " .. path)
+	---@cast fi file*
 	local content = assert(fi:read("*all"), "failed to read " .. path)
 	fi:close()
 	return content
+end
+
+if lfs.currentdir():find("garrysmod[/\\]data[/\\]starfall") then
+	warning("this repo should not be in starfall, instead move it out of starfall and use the `link` command to hardlink the files")
 end
 
 -- main logic
 
 if args.command:sub(1, 5) == "sfdoc" then
 	if args.command == "sfdoc-fetch" then
-		local downloaded, code, headers, status = http.request("http://51.68.206.223/sfdoc/docs.json")
+		local downloaded, code, _, _ = http.request("http://51.68.206.223/sfdoc/docs.json")
 		if not downloaded then error("failed to fetch sfdoc: " .. tostring(code)) end
 
 		local sfdoc = assert(json.decode(downloaded), "failed to decode sfdoc")
 
 		info("fetched sfdoc")
 
-		local file = assert(io.open("sfdoc.json", "w+"), "failed to open sfdoc.json")
-		assert(file:write(json.encode(sfdoc)), "failed to write sfdoc.json")
-		assert(file:close(), "failed to close sfdoc.json")
+		local fi = assert(io.open("sfdoc.json", "w+"), "failed to open sfdoc.json")
+		---@cast fi file*
+		assert(fi:write(json.encode(sfdoc)), "failed to write sfdoc.json")
+		assert(fi:close(), "failed to close sfdoc.json")
 
 		info("wrote sfdoc.json")
 	elseif args.command == "sfdoc-gen" then
-		error("todo")
+		info("read sfdoc.json")
+
+		local sfdoc = assert(json.decode(read_file("sfdoc.json")), "failed to decode sfdoc.json")
+		---@cast sfdoc table
+
+		local output = {}
+		local function line(...) table.insert(output, table.concat({ ... }, "\n")) end
+		local function prefixall(prefix, str) return prefix .. str:gsub("\n", "\n" .. prefix) end
+		local function doc(...) line(prefixall("---", table.concat({ ... }, "\n"))) end
+
+		-- the sfdoc iterator
+		local function sdi(over)
+			if not over then return function() end end
+
+			local i = 0
+			return function()
+				i = i + 1
+				local k = tostring(i)
+				if over[k] then return over[k], over[over[k]] end
+			end
+		end
+
+		local function collect_keys(iter)
+			local keys = {}
+			for key in iter do table.insert(keys, key) end
+			return keys
+		end
+
+		local function realm(thing)
+			if (thing.client and thing.server) or (not thing.client and not thing.server) then return "[shared]"
+			elseif thing.client then return "[client]"
+			elseif thing.server then return "[server]" end
+		end
+
+		local keyword_sanitize = {
+			["function"] = "fn",
+			["local"] = "loc",
+			["end"] = "endd",
+		}
+
+		local typemap = {
+			["Any"] = "any",
+			["Any..."] = "any ...",
+			["any..."] = "any ...",
+		}
+
+		local function strtype(ty)
+			if not ty then return "unknown" end
+			ty = type(ty) == "table" and table.concat(ty, "|") or ty
+			return typemap[ty] or ty
+		end
+
+		doc("@meta")
+
+		info("generating directives...")
+		line("", "-- directives")
+
+		for dctv_name, dctv in sdi(sfdoc.directives) do
+			line(
+				"",
+				"--[============================[--",
+				"directive: --@" .. dctv_name,
+				"",
+				dctv.description
+			)
+			if dctv.param then
+				line(
+					"",
+					"params:"
+				)
+				for param_name, param in sdi(dctv.param) do
+					line(("- `%s`: %s"):format(param_name, param))
+				end
+			end
+			if dctv.usage then
+				line(
+					"",
+					"usage:",
+					"```lua",
+					dctv.usage,
+					"```"
+				)
+			end
+			if dctv.deprecated then
+				line(
+					"",
+					"deprecated: " .. dctv.deprecated
+				)
+			end
+			line("--]============================]--")
+		end
+
+		info("generating tables...")
+		line("", "-- tables")
+
+		for tbl_name, tbl in sdi(sfdoc.tables) do
+			line()
+			doc(
+				realm(tbl),
+				tbl.description,
+				"@class (exact) " .. tbl_name
+			)
+			for field_name, field in sdi(tbl.field) do
+				doc(("@field %s %s '%s'"):format( field_name, field.type, field.desc))
+			end
+		end
+
+		info("generating classes...")
+		line("", "-- classes")
+
+		for class_name, class in sdi(sfdoc.classes) do
+			line()
+			doc(
+				realm(class),
+				class.description,
+				"@class (exact) " .. class_name
+			)
+			for field_name, field in sdi(class.field) do
+				doc(("@field %s %s '%s'"):format(field_name, field.type, field.desc))
+			end
+			for op_name, op in sdi(class.operators) do
+				local operator, lhs, rhs = op_name:match("(.+)_(.+)_(.+)")
+				if rhs ~= "nil" then doc(("@operator %s(%s): %s"):format(operator, lhs, op.returntypes[1]))
+				else doc(("@operator %s: %s"):format(operator, op.returntypes[1]))	end
+			end
+			line("local " .. class_name .. " = {}")
+			for meth_name, meth in sdi(class.methods) do
+				line()
+				doc(meth.description)
+				for param_name, param in sdi(meth.param) do
+					doc(("@param %s %s '%s'"):format(keyword_sanitize[param_name] or param_name, strtype(meth.paramtypes and meth.paramtypes[param_name]), param))
+				end
+				if meth.returntypes then
+					for i, ret in ipairs(meth.returntypes) do
+						doc(("@return %s '%s'"):format(
+							strtype(ret),
+							type(meth.ret) == "table"
+								and (
+									meth.ret[i] or "unknown"
+								)
+								or (i == 1 and meth.ret)
+								or ""
+						))
+					end
+				end
+				local params = collect_keys(sdi(meth.param or {}))
+				for k, v in ipairs(params) do
+					if keyword_sanitize[v] then params[k] = keyword_sanitize[v] end
+				end
+				line(("function %s:%s(%s) end"):format(class_name, meth_name, table.concat(params, ", ")))
+			end
+		end
+
+		info("generating libraries...")
+		line("", "-- libraries")
+
+		for lib_name, lib in sdi(sfdoc.libraries) do
+			if lib_name ~= "builtin" then
+				line()
+				doc(
+					realm(lib),
+					lib.description
+				)
+				line(lib_name .. " = {}")
+				for field_name, field in sdi(lib.field) do
+					doc(("@field %s %s '%s'"):format(field_name, field.type, field.desc))
+				end
+			else
+				for field_name, field in sdi(lib.field) do
+					line()
+					doc(
+						field.desc,
+						("@type %s"):format(field.type)
+					)
+					line(("%s = nil"):format(field_name))
+				end
+			end
+			for func_name, func in sdi(lib.functions) do
+				line()
+				doc(func.description)
+				for param_name, param in sdi(func.param) do
+					doc(("@param %s %s '%s'"):format(keyword_sanitize[param_name] or param_name, strtype(func.paramtypes and func.paramtypes[param_name]), param))
+				end
+				if func.returntypes then
+					for i, ret in ipairs(func.returntypes) do
+						doc(("@return %s '%s'"):format(
+							strtype(ret),
+							type(func.ret) == "table"
+								and (
+									func.ret[i] or "unknown"
+								)
+								or (i == 1 and func.ret)
+								or ""
+						))
+					end
+				end
+
+				local params = collect_keys(sdi(func.param or {}))
+				for k, v in ipairs(params) do
+					if keyword_sanitize[v] then params[k] = keyword_sanitize[v] end
+				end
+				if lib_name ~= "builtin" then line(("function %s.%s(%s) end"):format(lib_name, func_name, table.concat(params, ", ")))
+				else line(("function %s(%s) end"):format(func_name, table.concat(params, ", "))) end
+			end
+		end
+
+		info("finished generating")
+
+		local fi = assert(io.open("tscm.d.lua", "w+"), "failed to open tscm.d.lua")
+		---@cast fi file*
+		assert(fi:write(table.concat(output, "\n")), "failed to write tscm.d.lua")
+		assert(fi:close(), "failed to close tscm.d.lua")
+
+		info("wrote tscm.d.lua")
 	end
 elseif args.command:sub(1, 4) == "link" then
 	assert(lfs.attributes("toolconfig.json"), [[no toolconfig.json.
@@ -128,6 +342,7 @@ this command will replicate the structure of ./src/ to that directory but hardli
 			elseif attrs.mode ~= "directory" then fail.leaf("path exists, but is not a directory") end
 		end),
 	}, toolconfig, "toolconfig validation failed")
+	---@cast toolconfig table
 
 	info("sfdir: %s", toolconfig.sfd)
 
