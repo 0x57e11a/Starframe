@@ -15,6 +15,7 @@
 					lua52Packages.luasocket
 					lua52Packages.luasec
 					lua52Packages.dkjson
+					lua52Packages.luafilesystem
 				];
 			};
 		});

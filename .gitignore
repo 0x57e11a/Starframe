@@ -1,1 +1,4 @@
 .direnv
+toolconfig.json
+sfdoc.json
+tscm.d.lua
