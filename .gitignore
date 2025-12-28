@@ -2,3 +2,8 @@
 toolconfig.json
 sfdoc.json
 tscm.d.lua
+
+/luarocks
+/lua
+/lua_modules
+/.luarocks

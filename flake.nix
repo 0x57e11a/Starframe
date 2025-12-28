@@ -11,11 +11,11 @@
 			default = pkgs.mkShell {
 				buildInputs = with pkgs; [
 					lua52Packages.lua
-					lua52Packages.argparse
-					lua52Packages.luasocket
-					lua52Packages.luasec
-					lua52Packages.dkjson
-					lua52Packages.luafilesystem
+					# lua52Packages.argparse
+					# lua52Packages.luasocket
+					# lua52Packages.dkjson
+					# lua52Packages.luafilesystem
+					lua52Packages.luarocks
 				];
 			};
 		});
