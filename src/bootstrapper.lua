@@ -147,9 +147,9 @@ function bootstrapper.loadLibraries()
 		-- Normalise file paths
 		local localPath
 		if isSharedLibrary then
-			localPath = utf8.sub(path, #(sharedRoot.."/libraries/") + 1)
+			localPath = utf8.sub(path, #sharedRoot + #"/libraries/" + 1)
 		else
-			localPath = utf8.sub(path, #(localRoot.."/libraries/") + 1)
+			localPath = utf8.sub(path, #localRoot + #"/libraries/" + 1)
 		end
 
 		-- Bind library to loading order
