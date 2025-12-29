@@ -20,7 +20,8 @@
 mainframe = {
 	name = "Starframe",				-- The name of the mainframe
 	version = "0.1.0b",				-- The current version of the mainframe
-	author = "The Starframe Team"	-- The author(s) of the mainframe
+	author = "The Starframe Team",	-- The author(s) of the mainframe
+	modules = {}					-- The list of modules
 }
 
 
@@ -259,6 +260,7 @@ function bootstrapper.loadModules()
 		end
 
 		if success then
+			mainframe.modules[#mainframe.modules + 1] = moduleInfo
 			dependencies[path] = moduleInfo.dependencies or {}
 		end
 	end
