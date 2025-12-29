@@ -2,6 +2,7 @@
 toolconfig.json
 sfdoc.json
 tscm.d.lua
+make-links.psd1
 
 /luarocks
 /lua
