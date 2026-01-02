@@ -2,13 +2,14 @@
 # Create file make-links.psd1 with the following content :
 #
 # @{
-#     SourceRoot = "C:\Path\To\LuaRoot"
-#     DestRoot   = "C:\Path\To\LinkRoot"
+#     LuaRoot = "C:\Path\To\LuaRoot"
+#     StarfallRoot   = "C:\Path\To\StarfallRoot"
 #     IgnoreList = @() # Extra entries to ignore when syncing files.
 # }
 #
 # Replace SourceRoot to the absolute path to the /src directory.
 # Replace DestRoot to the absolute path to starframe's directory in your Starfall folder.
+# Optional : Run script with -Watch to enable a live-sync for created files.
 
 param (
     [Parameter(Mandatory = $false)] [switch] $Watch,
