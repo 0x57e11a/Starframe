@@ -1,1 +1,0 @@
-luarocks build starframe-dev-1.rockspec --tree lua_modules --force --lua_version 5.2

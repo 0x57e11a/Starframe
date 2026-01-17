@@ -1,0 +1,31 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Create .lua <-> .txt links",
+            "type": "shell",
+            "command": "pwsh",
+            "args": ["-File", "make-links.ps1"],
+            "problemMatcher": [], 
+            "options": {
+                "cwd": "${workspaceFolder}/tools/link-maker"
+            }
+        },
+        {
+            "label": "Create .lua <-> .txt links (watch for changes)",
+            "type": "process",
+            "command": "pwsh",
+            "args": ["-File", "make-links.ps1", "-Watch"],
+            "problemMatcher": [], 
+            "options": {
+                "cwd": "${workspaceFolder}/tools/link-maker"
+            }
+        },
+        {
+            "label": "Install dependencies for the SF Docgen tool (using LuaRocks)",
+            "type": "shell",
+            "command": "luarocks",
+            "args": ["build", "starframe-dev-1.rockspec", "--tree", "lua_modules", "--force", "--lua-version", "5.2"]
+        }
+    ]
+}
