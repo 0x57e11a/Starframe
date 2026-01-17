@@ -17,6 +17,6 @@ dependencies = {
 build = {
 	type = "builtin",
 	modules = {
-		sftools = "tools/docgen/tools.lua",
+		sftools = "tools/sftools/tools.lua",
 	},
 }
