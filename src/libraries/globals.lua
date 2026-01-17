@@ -114,4 +114,20 @@ end
 -- Calling the function with no callback will revert the hook to its original behaviour.
 -- This function does not propagate changes to previously registered hooks.
 ---@param hookName string The hook which needs its behaviour modified.
----@param addCallback function? The function to run when hook.add is ca
+---@param addCallback function? The function to run when hook.add is called.
+---@param removeCallback function? The function to run when hook.remove is called.
+---@param runCallback function? The function to run when the hook is ran (either by Starfall itself or by hook.run)
+function starhooks.alterHookBehavior(hookName, addCallback, removeCallback, runCallback)
+	types.check(hookName, "string", "hookName", 2)
+	types.check(addCallback, "function?", "addCallback", 2)
+	types.check(removeCallback, "function?", "removeCallback", 2)
+	types.check(runCallback, "function?", "runCallback", 2)
+
+	starhooks.alteredHooks[hookName] = {
+		add = addCallback,
+		run = runCallback,
+		remove = removeCallback
+	}
+end
+
+bootstrapper.addToEnvironment("hook", setmetatable({}, starhooks_mt))
