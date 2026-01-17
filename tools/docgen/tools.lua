@@ -13,7 +13,7 @@ package.cpath =
 local json = require("dkjson")
 local lfs = require("lfs")
 local http = require("socket.http")
-local sch = require("src/lib/schema")
+local sch = require("lib/schema")
 
 local parser = require("argparse")() {
 	name = "tools",
