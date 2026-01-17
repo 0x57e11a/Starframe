@@ -22,6 +22,9 @@
 	Run pre-initialisation logic after this comment.
 --]]
 
+bootstrapper.setLibraryPriority("utilities.txt", 1000)
+bootstrapper.setLibraryPriority("globals.txt", 999)
+
 bootstrapper.loadLibraries()
 
 --[[

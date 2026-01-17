@@ -1,3 +1,7 @@
 {
-	"Lua.workspace.library": ["tscm.d.lua"]
+	"Lua.workspace.library": ["tscm.d.lua"],
+	"Lua.runtime.version": "LuaJIT",
+	"Lua.diagnostics.disable": [
+		"lowercase-global"
+	]
 }
