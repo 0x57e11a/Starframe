@@ -75,6 +75,7 @@ function starhooks_mt.add(hookName, name, func)
 end
 
 
+-- Replaces the original hooks.remove function for modules.
 function starhooks_mt.remove(hookName, name)
 	local removeFunc = (starhooks.alteredHooks[hookName] or {}).removeCallback
 
@@ -87,6 +88,8 @@ function starhooks_mt.remove(hookName, name)
 	hook.remove(hookName, name)
 end
 
+
+-- Replaces the original hooks.run function for modules.
 function starhooks_mt.run(hookName, ...)
 	local runFunc = (starhooks.alteredHooks[hookName] or {}).runCallback
 
@@ -99,6 +102,7 @@ function starhooks_mt.run(hookName, ...)
 end
 
 
+-- Replaces the original hooks metatable call function for modules.
 function starhooks_mt.__call(self, hookName, name, func)
 	if func ~= nil then
 		starhooks_mt.add(hookName, name, func)
