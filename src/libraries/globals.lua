@@ -157,7 +157,7 @@ function startimers.adjust(name, delay, reps, func)
 				timer.remove(name)
 			end
 
-			bootstrapper.errorHandler(stacktrace)
+			bootstrapper.handleError(stacktrace)
 		end)
 	end)
 end
@@ -176,7 +176,7 @@ function startimers.create(name, delay, reps, func)
 				timer.remove(name)
 			end
 
-			bootstrapper.errorHandler(stacktrace)
+			bootstrapper.handleError(stacktrace)
 		end)
 	end)
 end
