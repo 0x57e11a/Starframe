@@ -278,7 +278,7 @@ function starchannels.listenPrivate(id, callback)
 	types.check(id, "any", "id", 2)
 	types.check(callback, "function", "callback", 2)
 
-	local id = bootstrapper.getCallingModuleID()..tostring(id)
+	id = bootstrapper.getCallingModuleID()..tostring(id)
 	local function listenPrivate(...)
 		xpcall(callback, function(stacktrace)
 			channels.removePrivate(id)
@@ -294,7 +294,7 @@ function starchannels.remove(channelName, id)
 	types.check(channelName, "string", "channelName", 2)
 	types.check(id, "any", "id", 2)
 
-	local id = bootstrapper.getCallingModuleID()..tostring(id)
+	id = bootstrapper.getCallingModuleID()..tostring(id)
 	channels.remove(channelName, id)
 end
 
@@ -302,7 +302,7 @@ end
 function starchannels.removePrivate(id)
 	types.check(id, "any", "id", 2)
 
-	local id = bootstrapper.getCallingModuleID()..tostring(id)
+	id = bootstrapper.getCallingModuleID()..tostring(id)
 	channels.removePrivate(id)
 end
 
