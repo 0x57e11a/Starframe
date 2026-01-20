@@ -26,7 +26,30 @@ mainframe = {
 
 
 -- The bootstrapper table, containing functions for setting up the mainframe and loading all assets.
-bootstrapper = {}
+bootstrapper = {
+	sharedRoot = "starframe", -- Root folder for mainframe shared files.
+	localRoot = string.gsub(starfall.getMainFileName(), "/[^/]+$", "", 1) -- Root folder for mainframe local files.
+}
+
+function bootstrapper.getCallingModulePath()
+	local traceback = debug.traceback()
+
+	local moduleCall
+	for line in string.gmatch(traceback, "[^\n]+") do
+		if string.find(line, "^"..bootstrapper.sharedRoot.."/modules/", 5)
+		or string.find(line, "^"..bootstrapper.localRoot.."/modules/", 5) then
+			moduleCall = line
+			break
+		end
+	end
+
+	return moduleCall and moduleCall:explode(":")[2]
+end
+
+function bootstrapper.getCallingModuleID()
+	local callingModule = bootstrapper.getCallingModulePath()
+	return callingModule and base64.encode(callingModule)
+end
 
 -- The environment metatable, base for all module environments.
 local environment_mt = {
@@ -38,7 +61,7 @@ environment_mt.__index = environment_mt
 
 -- Creates an isolated environment for a module to run in.
 ---@param modulePath string The path to the module.
----@return table The created environment.
+---@return table environment The created environment.
 function bootstrapper.createEnvironment(modulePath)
 	assert(type(modulePath) == "string", 'Invalid type for "modulePath" parameter. (Expected string, got '..type(modulePath)..")")
 
@@ -59,7 +82,7 @@ end
 
 -- Provides a standard error-catching mechanism for libraries to use.
 ---@param errorTrace Error The stacktrack of the error that happened in module code.
----@retrun Error The stacktrace.
+---@return Error stacktrace The stacktrace.
 function bootstrapper.handleError(errorTrace)
 	print(errorTrace) -- TODO: Make a less primitive error handler :3
 	return errorTrace
@@ -69,17 +92,12 @@ end
 -- Loading order table for library setup.
 local libraryLoadOrder = {}
 
--- Root folders for both shared and local mainframe file locations.
-local sharedRoot = "starframe"
-local localRoot = string.gsub(starfall.getMainFileName(), "/[^/]+$", "", 1)
-
-
 -- Sets the priority for a given library.
 ---@param path string The library's relative path from the mainframe's root.
----@param priority int The priority of the library, a higher number will make the library load sooner.
+---@param priority integer The priority of the library, a higher number will make the library load sooner.
 function bootstrapper.setLibraryPriority(path, priority)
 	assert(type(path) == "string", 'Invalid type for "path" parameter. (Expected string, got '..type(path)..")")
-	assert(type(priority) == "number", 'Invalid type for "priority" parameter. (Expected number, got '..type(prority)..")")
+	assert(type(priority) == "number", 'Invalid type for "priority" parameter. (Expected number, got '..type(priority)..")")
 
 	-- If existing entry with path exists, update it.
 	for _, existingEntry in pairs(libraryLoadOrder) do
@@ -100,9 +118,9 @@ end
 -- Binds a script to a loading order table
 -- Updates the matching loading order entry or creates it.
 ---@param path string The script's relative path.
----@param function script The script to bind
----@param table loadingOrder The loading order table to bind the script to.
----@param bool isFromShared Whether the script comes from shared or local.
+---@param script function The script to bind
+---@param loadingOrder table The loading order table to bind the script to.
+---@param isFromShared boolean Whether the script comes from shared or local.
 local function bindScript(path, script, loadingOrder, isFromShared)
 	local entry
 
@@ -136,8 +154,8 @@ function bootstrapper.loadLibraries()
 
 	-- Remove all files that are not libraries from the list
 	for path, script in pairs(librariesToLoad) do
-		local isSharedLibrary = string.find(path, sharedRoot.."/libraries/") ~= nil
-		local isLocalLibrary = string.find(path, localRoot.."/libraries/") ~= nil
+		local isSharedLibrary = string.find(path, bootstrapper.sharedRoot.."/libraries/") ~= nil
+		local isLocalLibrary = string.find(path, bootstrapper.localRoot.."/libraries/") ~= nil
 
 		if not (isLocalLibrary or isSharedLibrary) then
 			librariesToLoad[path] = nil
@@ -147,9 +165,9 @@ function bootstrapper.loadLibraries()
 		-- Normalise file paths
 		local localPath
 		if isSharedLibrary then
-			localPath = utf8.sub(path, #sharedRoot + #"/libraries/" + 1)
+			localPath = utf8.sub(path, #bootstrapper.sharedRoot + #"/libraries/" + 1)
 		else
-			localPath = utf8.sub(path, #localRoot + #"/libraries/" + 1)
+			localPath = utf8.sub(path, #bootstrapper.localRoot + #"/libraries/" + 1)
 		end
 
 		-- Bind library to loading order
@@ -219,8 +237,8 @@ function bootstrapper.loadModules()
 
 	-- Remove all files that are not modules from the list
 	for path, script in pairs(starfall.getScripts()) do
-		local isSharedModule = string.find(path, sharedRoot.."/modules/") ~= nil
-		local isLocalModule = string.find(path, localRoot.."/modules/") ~= nil
+		local isSharedModule = string.find(path, bootstrapper.sharedRoot.."/modules/") ~= nil
+		local isLocalModule = string.find(path, bootstrapper.localRoot.."/modules/") ~= nil
 
 		if not (isLocalModule or isSharedModule) then
 			goto continueModuleLoad
@@ -230,9 +248,9 @@ function bootstrapper.loadModules()
 		-- Normalise file paths
 		local localPath
 		if isSharedModule then
-			localPath = utf8.sub(path, #(sharedRoot.."/modules/") + 1)
+			localPath = utf8.sub(path, #bootstrapper.sharedRoot + #"/modules/" + 1)
 		else
-			localPath = utf8.sub(path, #(localRoot.."/modules/") + 1)
+			localPath = utf8.sub(path, #bootstrapper.localRoot + #"/modules/" + 1)
 		end
 
 		-- Take local script in priority to shared script

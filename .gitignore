@@ -8,3 +8,5 @@ make-links.psd1
 /lua
 /lua_modules
 /.luarocks
+
+src/modules/test-module.lua
