@@ -121,6 +121,20 @@ function table.filter(t, filter)
 end
 
 
+---Returns whether the given table contains the given value
+---@param t table The table to search in
+---@param value any The value to search for
+---@return boolean contains Whether the table contains the value
+---@return integer count The number of occurrences of the value in the table
+function table.contains(t, value)
+	types.check(t, "table", "t", 2)
+	types.check(value, "any", "value", 2)
+
+	local found = table.filter(t, function(_, v) return v == value end)
+	return #found > 0, #found
+end
+
+
 ---Returns a copy of the given table whose entries have been mapped by the given function
 ---@param t table The input table
 ---@param map function The mapping function, it is given the current value to map
