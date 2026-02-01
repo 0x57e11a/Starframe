@@ -2,8 +2,6 @@
 --@author The Starframe Team
 --@class none
 
-require("src/libraries/utilities")
-
 --[[
 
     The wire library is a modified version of the original wire library
