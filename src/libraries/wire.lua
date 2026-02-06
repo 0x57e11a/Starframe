@@ -34,7 +34,7 @@ local starwire = {
     PORT_TYPE_WIRELINK = wire.PORT_TYPE_WIRELINK
 }
 
-local allowedIOTypes = {
+local allowedInputTypes = {
 	[wire.PORT_TYPE_ANGLE] = true,
 	[wire.PORT_TYPE_ARRAY] = true,
 	[wire.PORT_TYPE_ENTITY] = true,
@@ -46,7 +46,19 @@ local allowedIOTypes = {
 	[wire.PORT_TYPE_WIRELINK] = true
 }
 
+local allowedOutputTypes = {
+	[wire.PORT_TYPE_ANGLE] = true,
+	[wire.PORT_TYPE_ARRAY] = true,
+	[wire.PORT_TYPE_ENTITY] = true,
+	[wire.PORT_TYPE_NUMBER] = true,
+	[wire.PORT_TYPE_STRING] = true,
+	[wire.PORT_TYPE_VECTOR] = true,
+	[wire.PORT_TYPE_VECTOR2] = true,
+	[wire.PORT_TYPE_VECTOR4] = true
+}
+
 local mainframeLoading = true
+---Creates all wire inputs
 local function buildInputs()
     if mainframeLoading then return end
 
@@ -66,6 +78,7 @@ local function buildInputs()
 end
 
 
+---Creates all wire outputs
 local function buildOutputs()
     if mainframeLoading then return end
 
@@ -85,12 +98,15 @@ local function buildOutputs()
 end
 
 
-local function getInputCount(moduleID)
-	if moduleID ~= nil then
-		return #inputs[moduleID].names
+---Returns the number of inputs/outputs for a specific module or all
+local function getIOCount(ioType, moduleId)
+	local ioList = (ioType == "input" and inputs) or outputs
+
+	if moduleId ~= nil then
+		return (ioList[moduleId] and #ioList[moduleId].names) or 0
 	else
 		local count = 0
-		for _, value in pairs(inputs) do
+		for _, value in pairs(ioList) do
 			count = count + #value.names
 		end
 
@@ -99,116 +115,116 @@ local function getInputCount(moduleID)
 end
 
 
-local function getOutputCount(moduleID)
-	if moduleID ~= nil then
-		return #outputs[moduleID].names
-	else
-		local count = 0
-		for _, value in pairs(outputs) do
-			count = count + #value.names
-		end
+---Checks whether the current IO name, type and description is valid.
+local function checkIO(index, ioType, name, type, desc)
+	types.check(name, "string", "name #"..tostring(index), 3)
+	types.check(type, "string", "type #"..tostring(index), 3)
+	types.check(desc, "string?", "description #"..tostring(index), 3)
 
-		return count
+	if not string.find(name, "^[A-Z][%a%d%s]*$") then
+		error("Invalid "..ioType.." name at index "..tostring(index).." (must be alphanumeric starting with upper-case)", 3)
+	end
+
+	local allowList = (ioType == "input" and allowedInputTypes) or allowedOutputTypes
+	if not allowList[type:upper()] then
+		error("Invalid/unsupported "..ioType.." type at index "..tostring(index)..": "..type, 3)
 	end
 end
 
+
+---Checks all registered inputs/outputs for duplicate names
+local function checkForDuplicateName(moduleId, ioType, name)
+	local ioList = (ioType == "input" and inputs) or outputs
+	local filteredIOList = table.except(ioList, ioList[moduleId])
+
+	for otherModuleId, list in pairs(filteredIOList) do
+		if table.contains(list.names, name) then
+			local otherModulePath = base64.decode(otherModuleId)
+			error("Duplicate "..ioType.." name '"..name.."' (registered in "..otherModulePath..")", 3)
+		end
+	end
+end
 
 ---Replaces the standard wire library's createInput function
 ---@param names string[]
----@param types string[]
+---@param inTypes string[]
 ---@param descriptions string[]?
 ---@see wire.createInputs
-function starwire.createInputs(names, types, descriptions)
+function starwire.createInputs(names, inTypes, descriptions)
     types.check(names, "table", "names", 2)
-    types.check(types, "table", "types", 2)
+    types.check(inTypes, "table", "types", 2)
     types.check(descriptions, "table?", "descriptions", 2)
 
-    descriptions = descriptions or {}
-
-    local moduleID = bootstrapper.getCallingModuleID() or 1
-    local moduleInputs = {
-        names = names,
-        types = types,
-        descriptions = descriptions
-    }
-
-    if #names ~= #types then
+	if #names ~= #inTypes then
         error("Names and Types must have the same amount of values", 2)
     end
 
+	---Set moduleId to 1 for library-handled IO
+    local moduleId = bootstrapper.getCallingModuleId() or 1
+	local moduleInputs = {
+        names = {unpack(names)},
+        types = {unpack(inTypes)},
+        descriptions = {unpack(descriptions or {})}
+    }
+
 	--- Get total count - current inputs + expected inputs
-	local expectedCount = getInputCount() - getInputCount(moduleID) + #moduleInputs.names
+	local expectedCount = getIOCount("input") - getIOCount("input", moduleId) + #moduleInputs.names
 	if expectedCount > 64 then
 		error("Expected input count is over the maximum of 64", 2)
 	end
 
-	for i = 1, #names do
-		local name = names[i]
-		local type = string.upper(types[i])
-		local desc = descriptions[i]
+	for i = 1, #moduleInputs.names do
+		local name = moduleInputs.names[i]
+		local type = moduleInputs.types[i]
+		local desc = moduleInputs.descriptions[i]
 
-		types.check(desc, "string?", "description #"..tostring(i))
-
-		if not string.find(name, "^[A-Z][%a%d%s]*$") then
-			error("Invalid input name at index "..tostring(i).." (must be alphanumeric starting with upper-case)", 2)
-		end
-
-		if not allowedIOTypes[type] then
-			error("Invalid/unsupported input type at index "..tostring(i).. ": "..type, 2)
-		end
+		checkForDuplicateName(moduleId, "input", name)
+		checkIO(i, "input", name, type, desc)
 	end
 
-    inputs[moduleID] = moduleInputs
+    inputs[moduleId] = moduleInputs
     buildInputs()
 end
 
 
 ---Replaces the standard wire library's createOutput function
 ---@param names string[]
----@param types string[]
+---@param outTypes string[]
 ---@param descriptions string[]?
 ---@see wire.createOutputs
-function starwire.createOutputs(names, types, descriptions)
+function starwire.createOutputs(names, outTypes, descriptions)
 	types.check(names, "table", "names", 2)
-	types.check(types, "table", "types", 2)
+	types.check(outTypes, "table", "types", 2)
 	types.check(descriptions, "table?", "descriptions", 2)
 
-	descriptions = descriptions or {}
-
-	local moduleID = bootstrapper.getCallingModuleID() or 1
+	---Set moduleId to 1 for external IO (library-handled)
+	local moduleId = bootstrapper.getCallingModuleId() or 1
 	local moduleOutputs = {
-		names = names,
-		types = types,
-		descriptions = descriptions
+		names = {unpack(names)},
+		types = {unpack(outTypes)},
+		descriptions = {unpack(descriptions or {})}
 	}
 
-	if #names ~= #types then
+	if #names ~= #outTypes then
 		error("Names and Types must have the same amount of values", 2)
 	end
 
 	--- Get total count - current outputs + expected outputs
-	local expectedCount = getOutputCount() - getOutputCount(moduleID) + #moduleOutputs.names
+	local expectedCount = getIOCount("output") - getIOCount("output", moduleId) + #moduleOutputs.names
 	if expectedCount > 64 then
 		error("Expected output count is over the maximum of 64", 2)
 	end
 
-	for i = 1, #names do
-		local name = names[i]
-		local type = string.upper(types[i])
-		local desc = descriptions[i]
+	for i = 1, #moduleOutputs.names do
+		local name = moduleOutputs.names[i]
+		local type = moduleOutputs.types[i]
+		local desc = moduleOutputs.descriptions[i]
 
-		types.check(desc, "string?", "description #"..tostring(i))
-
-		if not string.find(name, "^[A-Z][%a%d%s]*$") then
-			error("Invalid output name at index "..tostring(i).." (must be alphanumeric starting with upper-case)", 2)
-		end
-
-		if not allowedIOTypes[type] or type == wire.PORT_TYPE_WIRELINK then
-			error("Invalid/unsupported output type at index "..tostring(i).. ": "..type, 2)
-		end
+		checkForDuplicateName(moduleId, "output", name)
+		checkIO(i, "output", name, type, desc)
 	end
 
-	outputs[moduleID] = moduleOutputs
+	outputs[moduleId] = moduleOutputs
 	buildInputs()
 end
 
