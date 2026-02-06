@@ -31,6 +31,7 @@ bootstrapper = {
 	localRoot = string.gsub(starfall.getMainFileName(), "/[^/]+$", "", 1) -- Root folder for mainframe local files.
 }
 
+---Returns the calling module's path or nil if the function is ran outside a module.
 function bootstrapper.getCallingModulePath()
 	local traceback = debug.traceback()
 
@@ -46,7 +47,8 @@ function bootstrapper.getCallingModulePath()
 	return moduleCall and moduleCall:explode(":")[2]
 end
 
-function bootstrapper.getCallingModuleID()
+---Returns the calling module's path encoded in base64 or nil if the function is ran outside a module.
+function bootstrapper.getCallingModuleId()
 	local callingModule = bootstrapper.getCallingModulePath()
 	return callingModule and base64.encode(callingModule)
 end
