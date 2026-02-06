@@ -120,6 +120,17 @@ function table.filter(t, filter)
 end
 
 
+---Returns a copy of the table t where all occurences of value have been removed
+---@param t table The table to filter
+---@param value any The value to filter
+---@return table result A new table where occurences of value have been removed
+function table.except(t, value)
+	return table.filter(t, function(_,v)
+		return v ~= value
+	end)
+end
+
+
 ---Returns whether the given table contains the given value
 ---@param t table The table to search in
 ---@param value any The value to search for
