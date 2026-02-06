@@ -67,7 +67,7 @@ function starhooks_mt.add(hookName, name, func)
 		bootstrapper.handleError(stacktrace)
 	end
 
-	name = bootstrapper.getCallingModuleID()..tostring(name)
+	name = bootstrapper.getCallingModuleId()..tostring(name)
 
 	hook.add(hookName, name, function(...)
 		xpcall(func, removeErroredHook, ...)
@@ -84,7 +84,7 @@ function starhooks_mt.remove(hookName, name)
 		return
 	end
 
-	name = bootstrapper.getCallingModuleID()..tostring(name)
+	name = bootstrapper.getCallingModuleId()..tostring(name)
 	hook.remove(hookName, name)
 end
 
@@ -94,11 +94,10 @@ function starhooks_mt.run(hookName, ...)
 	local runFunc = (starhooks.alteredHooks[hookName] or {}).runCallback
 
 	if runFunc then
-		runFunc(hookName, ...)
-		return
+		return runFunc(hookName, ...)
 	end
 
-	hook.run(hookName, ...)
+	return hook.run(hookName, ...)
 end
 
 
@@ -128,9 +127,9 @@ function starhooks.alterHookBehavior(hookName, addCallback, removeCallback, runC
 	types.check(runCallback, "function?", "runCallback", 2)
 
 	starhooks.alteredHooks[hookName] = {
-		add = addCallback,
-		run = runCallback,
-		remove = removeCallback
+		addCallback = addCallback,
+		runCallback = runCallback,
+		removeCallback = removeCallback
 	}
 end
 
@@ -150,7 +149,7 @@ function startimers.adjust(name, delay, reps, func)
 	types.check(reps, "number?", "reps", 2)
 	types.check(func, "function", "func", 2)
 
-	name = bootstrapper.getCallingModuleID()..name
+	name = bootstrapper.getCallingModuleId()..name
 	return timer.adjust(name, delay, reps, function()
 		xpcall(func, function(stacktrace)
 			if timer.exists(name) then
@@ -169,7 +168,7 @@ function startimers.create(name, delay, reps, func)
 	types.check(reps, "number", "reps", 2)
 	types.check(func, "function", "func", 2)
 
-	name = bootstrapper.getCallingModuleID()..name
+	name = bootstrapper.getCallingModuleId()..name
 	timer.create(name, delay, reps, function()
 		xpcall(func, function(stacktrace)
 			if timer.exists(name) then
@@ -184,28 +183,28 @@ end
 
 function startimers.exists(name)
 	types.check(name, "string", "name", 2)
-	name = bootstrapper.getCallingModuleID()..name
+	name = bootstrapper.getCallingModuleId()..name
 	return timer.exists(name)
 end
 
 
 function startimers.pause(name)
 	types.check(name, "string", "name", 2)
-	name = bootstrapper.getCallingModuleID()..name
+	name = bootstrapper.getCallingModuleId()..name
 	return timer.pause(name)
 end
 
 
 function startimers.remove(name)
 	types.check(name, "string", "name", 2)
-	name = bootstrapper.getCallingModuleID()..name
+	name = bootstrapper.getCallingModuleId()..name
 	timer.remove(name)
 end
 
 
 function startimers.repsLeft(name)
 	types.check(name, "string", "name", 2)
-	name = bootstrapper.getCallingModuleID()..name
+	name = bootstrapper.getCallingModuleId()..name
 	return timer.repsLeft(name)
 end
 
@@ -219,28 +218,28 @@ end
 
 function startimers.start(name)
 	types.check(name, "string", "name", 2)
-	name = bootstrapper.getCallingModuleID()..name
+	name = bootstrapper.getCallingModuleId()..name
 	return timer.start(name)
 end
 
 
 function startimers.stop(name)
 	types.check(name, "string", "name", 2)
-	name = bootstrapper.getCallingModuleID()..name
+	name = bootstrapper.getCallingModuleId()..name
 	return timer.stop(name)
 end
 
 
 function startimers.timeLeft(name)
 	types.check(name, "string", "name", 2)
-	name = bootstrapper.getCallingModuleID()..name
+	name = bootstrapper.getCallingModuleId()..name
 	return timer.timeLeft(name)
 end
 
 
 function startimers.unpause(name)
 	types.check(name, "string", "name", 2)
-	name = bootstrapper.getCallingModuleID()..name
+	name = bootstrapper.getCallingModuleId()..name
 	return timer.unpause(name)
 end
 
@@ -261,7 +260,7 @@ function starchannels.listen(channelName, id, callback)
 	types.check(id, "any", "id", 2)
 	types.check(callback, "function", "callback", 2)
 
-	local id = bootstrapper.getCallingModuleID()..tostring(id)
+	local id = bootstrapper.getCallingModuleId()..tostring(id)
 
 	local function listen(...)
 		xpcall(callback, function(stacktrace)
@@ -278,7 +277,7 @@ function starchannels.listenPrivate(id, callback)
 	types.check(id, "any", "id", 2)
 	types.check(callback, "function", "callback", 2)
 
-	id = bootstrapper.getCallingModuleID()..tostring(id)
+	id = bootstrapper.getCallingModuleId()..tostring(id)
 	local function listenPrivate(...)
 		xpcall(callback, function(stacktrace)
 			channels.removePrivate(id)
@@ -294,7 +293,7 @@ function starchannels.remove(channelName, id)
 	types.check(channelName, "string", "channelName", 2)
 	types.check(id, "any", "id", 2)
 
-	id = bootstrapper.getCallingModuleID()..tostring(id)
+	id = bootstrapper.getCallingModuleId()..tostring(id)
 	channels.remove(channelName, id)
 end
 
@@ -302,7 +301,7 @@ end
 function starchannels.removePrivate(id)
 	types.check(id, "any", "id", 2)
 
-	id = bootstrapper.getCallingModuleID()..tostring(id)
+	id = bootstrapper.getCallingModuleId()..tostring(id)
 	channels.removePrivate(id)
 end
 

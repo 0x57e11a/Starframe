@@ -41,9 +41,8 @@ end
 ---@param value any The value to check
 ---@param desiredType string The desired type string, use "?" for nillable and "|" for multiple types.
 ---@param name string The name of the argument
----@param level integer The
+---@param level integer? The level at which the error should propagate from (defaults to 1)
 function types.check(value, desiredType, name, level)
-
 	local errorFormat = "Invalid value for parameter %s (expected %s, got %s)"
 
 	if type(desiredType) ~= "string" then
